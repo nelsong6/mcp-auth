@@ -7,6 +7,7 @@ on:
       - 'Dockerfile'
       - 'pyproject.toml'
       - 'src/**'
+      - 'scripts/image-fingerprint.sh'
       - '.github/workflows/build.yml'
   workflow_dispatch:
 
@@ -37,20 +38,58 @@ jobs:
       - name: ACR login
         run: az acr login --name romainecr
 
-      - name: Compute tag
-        id: tag
-        run: echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build + push
+      - name: Compute image fingerprint
+        id: fingerprint
+        shell: bash
         run: |
-          TAG="${{ steps.tag.outputs.tag }}"
-          docker build -t romainecr.azurecr.io/mcp-auth:$TAG .
-          docker push romainecr.azurecr.io/mcp-auth:$TAG
-          echo "### Pushed romainecr.azurecr.io/mcp-auth:$TAG" >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+          scripts/image-fingerprint.sh \
+            --image mcp-auth \
+            --dockerfile Dockerfile \
+            --context . \
+            --paths 'Dockerfile pyproject.toml src'
+
+      - name: Check ACR proof image
+        id: proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.fingerprint.outputs.proof_tag }}"
+          if az acr repository show-tags \
+              --name romainecr \
+              --repository mcp-auth \
+              --query "[?@=='${tag}'] | [0]" \
+              --output tsv | grep -qx "${tag}"; then
+            echo "hit=true" >>"${GITHUB_OUTPUT}"
+            echo "Found reusable proof image: romainecr.azurecr.io/mcp-auth:${tag}"
+          else
+            echo "hit=false" >>"${GITHUB_OUTPUT}"
+            echo "No proof image found for mcp-auth fingerprint ${{ steps.fingerprint.outputs.fingerprint }}"
+          fi
+
+      - name: Build and push proof image
+        if: steps.proof.outputs.hit != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: romainecr.azurecr.io/mcp-auth:${{ steps.fingerprint.outputs.proof_tag }}
+          cache-from: |
+            type=registry,ref=romainecr.azurecr.io/mcp-auth-build-cache:mcp-auth
+            type=gha,scope=mcp-auth
+          cache-to: |
+            type=registry,ref=romainecr.azurecr.io/mcp-auth-build-cache:mcp-auth,mode=max
+            type=gha,mode=max,scope=mcp-auth
 
       - name: Bump chart image tag
         run: |
-          tag="${{ steps.tag.outputs.tag }}"
+          tag="${{ steps.fingerprint.outputs.proof_tag }}"
+          # Targeted sed: only the line at two-space indent under `image:`.
+          # Quote the value so YAML never reinterprets image tags.
           sed -i -E "s|^(  tag: ).*$|\1\"${tag}\"|" chart/values.yaml
 
           if git diff --quiet chart/values.yaml; then
@@ -61,7 +100,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add chart/values.yaml
-          git commit -m "chart: bump image to ${tag} [skip ci]"
+          git commit -m "chart: bump mcp-auth image to fingerprint ${tag} [skip ci]"
           for i in 1 2 3; do
             if git push; then exit 0; fi
             git pull --rebase origin main
