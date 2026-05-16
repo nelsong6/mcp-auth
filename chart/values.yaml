@@ -1,0 +1,29 @@
+# ============================================================================
+# mcp-auth values
+# ============================================================================
+# auth.romaine.life admin API credentials come from KV via ExternalSecret
+# (added in a follow-up). Inbound caller identity is the same Tank session
+# attestation shape mcp-github uses.
+
+image:
+  repository: romainecr.azurecr.io/mcp-auth
+  tag: "main"
+  pullPolicy: IfNotPresent
+
+port: 8080
+
+tankOperator:
+  jwksUrl: http://tank-operator.tank-operator.svc.cluster.local/api/internal/jwks
+  issuer: tank-operator
+  audience: mcp-auth-tank
+
+# auth.romaine.life base URL the admin tools call through.
+authService:
+  baseUrl: https://auth.romaine.life
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 128Mi

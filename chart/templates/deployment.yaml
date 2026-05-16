@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-auth
+  namespace: mcp-auth
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mcp-auth
+  template:
+    metadata:
+      labels:
+        app: mcp-auth
+    spec:
+      serviceAccountName: mcp-auth
+      containers:
+        - name: mcp-auth
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.port }}
+          env:
+            - name: PORT
+              value: "{{ .Values.port }}"
+            - name: TANK_OPERATOR_JWKS_URL
+              value: "{{ .Values.tankOperator.jwksUrl }}"
+            - name: TANK_OPERATOR_JWT_ISSUER
+              value: "{{ .Values.tankOperator.issuer }}"
+            - name: TANK_OPERATOR_JWT_AUDIENCE
+              value: "{{ .Values.tankOperator.audience }}"
+            - name: AUTH_BASE_URL
+              value: "{{ .Values.authService.baseUrl }}"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

@@ -1,0 +1,4 @@
+apiVersion: v2
+name: mcp-auth
+version: 0.1.0
+description: Tank-bound MCP server fronting auth.romaine.life user management.
