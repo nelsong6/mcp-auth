@@ -9,7 +9,7 @@
 
 image:
   repository: romainecr.azurecr.io/mcp-auth
-  tag: "mcp-auth-dfb64b6b380bdd083779b454317897486e0f631cfce2bba8f739f71a4a3094ab"
+  tag: "mcp-auth-0cfe1423b7ec148bb8e4d9099f46bfdaa016775f17afc58a7508465fc2c2a34b"
   pullPolicy: IfNotPresent
 
 port: 8080
