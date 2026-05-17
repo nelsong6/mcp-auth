@@ -1,9 +1,11 @@
 # ============================================================================
 # mcp-auth values
 # ============================================================================
-# auth.romaine.life admin API credentials come from KV via ExternalSecret
-# (added in a follow-up). Inbound caller identity is the same Tank session
-# attestation shape mcp-github uses.
+# Inbound caller identity comes from an auth.romaine.life role=admin JWT
+# verified by the shared romaine-auth package — same shape as
+# mcp-glimmung / mcp-k8s / mcp-argocd / mcp-azure-personal. Outbound calls
+# to auth.romaine.life's admin endpoints forward the inbound caller's
+# JWT directly (no separate service-to-service credential).
 
 image:
   repository: romainecr.azurecr.io/mcp-auth
@@ -12,10 +14,9 @@ image:
 
 port: 8080
 
-tankOperator:
-  jwksUrl: http://tank-operator.tank-operator.svc.cluster.local/api/internal/jwks
-  issuer: tank-operator
-  audience: mcp-auth-tank
+authRomaineLife:
+  issuer: https://auth.romaine.life
+  jwksUrl: https://auth.romaine.life/api/auth/jwks
 
 # auth.romaine.life base URL the admin tools call through.
 authService:

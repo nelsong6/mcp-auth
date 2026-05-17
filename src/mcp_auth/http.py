@@ -3,11 +3,16 @@
 Scaffold only — tools are not registered yet. The follow-up PR will add:
   * list_users / update_user / enroll_user — wrappers around
     auth.romaine.life's /admin endpoints
-  * outbound credential plumbing (service-to-service token from auth)
+  * inbound auth via the shared romaine-auth verifier (same shape as
+    mcp-glimmung / mcp-k8s / mcp-argocd / mcp-azure-personal); admin-only
+    tools enforce role=admin inside the handler
+  * outbound credential plumbing — forwards the inbound caller's JWT
+    to auth.romaine.life rather than minting a separate service-to-
+    service credential
 
 For now this serves /healthz so the deployment becomes Ready and the
-ingress / RBAC / inbound-attestation path can be exercised end-to-end
-before any tool surface exists.
+ingress / RBAC path can be exercised end-to-end before any tool
+surface exists.
 """
 
 import logging
